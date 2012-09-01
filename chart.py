@@ -17,14 +17,19 @@ with open(sys.argv[1], 'rb') as fileobj:
 plt.figure(1)
 
 plt.subplot(311)
-plt.plot(idle_thread_count, color='blue')
+plt.ylabel('Available Threads')
+plt.fill_between(range(len(idle_thread_count)),
+                 idle_thread_count, color='green')
 
 plt.subplot(312)
+plt.ylabel('Active Processes')
 plt.fill_between(range(len(active_processes)),
-                 active_processes, color='red')
+                 active_processes, color='blue')
 
 plt.subplot(313)
+plt.xlabel('Maintenance Cycle')
+plt.ylabel('Concurrent Requests')
 plt.fill_between(range(len(active_thread_count)),
-                 active_thread_count, color='green')
+                 active_thread_count, color='red')
 
 plt.show()
