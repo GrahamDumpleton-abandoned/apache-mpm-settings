@@ -24,7 +24,6 @@ plt.fill_between(range(len(active_processes)),
                  active_processes, color='red')
 
 plt.subplot(313)
-plt.plot(active_thread_count)
 plt.fill_between(range(len(active_thread_count)),
                  active_thread_count, color='green')
 
