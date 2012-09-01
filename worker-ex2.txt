@@ -1,0 +1,6 @@
+StartServers 4 
+MaxClients 144 
+MinSpareThreads 50 
+MaxSpareThreads 96 
+ThreadsPerChild 24 
+MaxRequestsPerChild 10000

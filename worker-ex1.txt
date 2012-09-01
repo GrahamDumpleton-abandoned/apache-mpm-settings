@@ -1,0 +1,7 @@
+StartServers 2 
+MinSpareThreads 2 
+MaxSpareThreads 4 
+ThreadLimit 10 
+ThreadsPerChild 10 
+MaxClients 100 
+MaxRequestsPerChild 10000
