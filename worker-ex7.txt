@@ -1,0 +1,4 @@
+MaxSpareThreads 3
+MinSpareThreads 1
+ServerLimit 1
+ThreadsPerChild 5

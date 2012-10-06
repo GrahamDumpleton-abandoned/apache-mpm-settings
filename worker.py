@@ -1,3 +1,12 @@
+import sys
+import StringIO
+
+def info(s, *args):
+    print >> sys.stderr, s % args
+
+def warn(s, *args):
+    print >> sys.stderr, s % args
+
 # Following is based on Apache 2.2.21 code base.
 
 # Hardwired Worker MPM Defaults. These are what will be relied upon if no
@@ -42,9 +51,6 @@ class Configuration(object):
         'MaxRequestsPerChild': 'set_max_requests_per_child',
     }
 
-    def __init__(self):
-        self.set_defaults()
-
     def set_defaults(self):
         self.ap_daemons_to_start = DEFAULT_START_DAEMON
         self.min_spare_threads = (DEFAULT_MIN_FREE_DAEMON *
@@ -62,9 +68,10 @@ class Configuration(object):
         self.min_spare_threads = value
 
         if self.min_spare_threads <= 0:
-            print 'WARNING: detected MinSpareThreads set to non-positive.'
-            print 'Resetting to 1 to avoid almost certain Apache failure.'
-            print 'Please read the documentation.'
+            warn('WARNING: detected MinSpareThreads set to non-positive.')
+            warn('Resetting to 1 to avoid almost certain Apache failure.')
+            warn('Please read the documentation.')
+
             self.min_spare_threads = 1
 
     def set_max_spare_threads(self, value):
@@ -74,72 +81,80 @@ class Configuration(object):
         max_clients = value
 
         if max_clients < self.ap_threads_per_child:
-            print 'WARNING: MaxClients (%d) must be at least as large' % (
+            warn('WARNING: MaxClients (%d) must be at least as large',
                     max_clients)
-            print 'as ThreadsPerChild (%d). Automatically' % (
+            warn('as ThreadsPerChild (%d). Automatically',
                     self.ap_threads_per_child)
-            print 'increasing MaxClients to %d.' % self.ap_threads_per_child
+            warn('increasing MaxClients to %d.', self.ap_threads_per_child)
+
             max_clients = self.ap_threads_per_child
 
         self.ap_daemons_limit = max_clients / self.ap_threads_per_child
 
         if (max_clients > 0) and (max_clients % self.ap_threads_per_child):
-            print 'WARNING: MaxClients (%d) is not an integer multiple' % (
+            warn('WARNING: MaxClients (%d) is not an integer multiple',
                     self.max_clients)
-            print 'of ThreadsPerChild (%d), lowering MaxClients to %d' % (
+            warn('of ThreadsPerChild (%d), lowering MaxClients to %d',
                     self.ap_threads_per_child,
                     self.ap_daemons_limit * self.ap_threads_per_child)
-            print 'for a maximum of %d child processes.' % (
+            warn('for a maximum of %d child processes.',
                     self.ap_daemons_limit)
+
             max_clients = self.ap_daemons_limit * self.ap_threads_per_child
 
         if self.ap_daemons_limit > self.server_limit:
-            print 'WARNING: MaxClients of %d would require %d servers,' % (
+            wanr('WARNING: MaxClients of %d would require %d servers,',
                     max_clients, self.ap_daemons_limit)
-            print 'and would exceed the ServerLimit value of %d.' % (
+            warn('and would exceed the ServerLimit value of %d.',
                     self.server_limit)
-            print 'Automatically lowering MaxClients to %d. To increase,' % (
+            warn('Automatically lowering MaxClients to %d. To increase,',
                     self.server_limit * self.ap_threads_per_child)
+
             self.ap_daemons_limit = self.server_limit
 
         elif self.ap_daemons_limit < 1:
-            print 'WARNING: Require MaxClients > 0, setting to 1.'
+            warn('WARNING: Require MaxClients > 0, setting to 1.')
+
             self.ap_daemons_limit = 1
 
     def set_threads_per_child(self, value):
         self.ap_threads_per_child = value
 
         if self.ap_threads_per_child > self.thread_limit:
-            print ('WARNING: ThreadsPerChild of %d exceeds ThreadLimit '
-                    'value of %d') % (self.ap_threads_per_child,
+            warn('WARNING: ThreadsPerChild of %d exceeds ThreadLimit '
+                    'value of %d', self.ap_threads_per_child,
                      self.thread_limit)
-            print ('threads, lowering ThreadsPerChild to %d. To increase, '
-                   'please see the') % (self.thread_limit)
-            print 'ThreadLimit directive.'
+            warn('threads, lowering ThreadsPerChild to %d. To increase, '
+                   'please see the', self.thread_limit)
+            warn('ThreadLimit directive.')
+
             self.ap_threads_per_child = self.thread_limit
 
         elif self.ap_threads_per_child < 1:
-            print 'WARNING: Require ThreadsPerChild > 0, setting to 1'
+            warn('WARNING: Require ThreadsPerChild > 0, setting to 1')
+
             self.ap_threads_per_child = 1
 
     def set_server_limit(self, value):
         self.server_limit = value
 
         if self.server_limit < 1:
-            print 'WARNING: Require ServerLimit > 0, setting to 1'
+            warn('WARNING: Require ServerLimit > 0, setting to 1')
+
             self.server_limit = 1
 
     def set_thread_limit(self, value):
         self.thread_limit = value
 
         if self.thread_limit < 1:
-            print 'WARNING: Require ThreadLimit > 0, setting to 1'
+            warn('WARNING: Require ThreadLimit > 0, setting to 1')
+
             self.thread_limit = 1
 
     def set_max_requests_per_child(self, value):
         self.ap_max_requests_per_child = value
 
-    def parse_settings(self, fileobj):
+    def _parse_settings(self, fileobj):
         actions = {}
         for line in fileobj:
             directive, value = line.strip().split()
@@ -159,26 +174,53 @@ class Configuration(object):
 
         for method, value in actions.values():
             method(int(value))
-        
+
+        # This stops thrashing were processes killed almost straight
+        # after they have been created.
+
+        if self.max_spare_threads < (self.min_spare_threads +
+                self.ap_threads_per_child):
+            self.max_spare_threads = (self.min_spare_threads +
+                self.ap_threads_per_child)
+
+        # Can't start more than maximum number of daemons allowed.
+
+        self.children_to_start = self.ap_daemons_to_start
+        if self.children_to_start > self.ap_daemons_limit:
+            self.children_to_start = self.ap_daemons_limit
+
+    def parse_settings(self, fileobj):
+        # We actually have to perform the parse twice to simulate
+        # what Apache does as the server limit gets reset on the
+        # first past based on values and then used by the second.
+
+        data = fileobj.read()
+
+        self.set_defaults()
+        fileobj = StringIO.StringIO(data)
+        self._parse_settings(fileobj)
+
+        self.set_defaults()
+        fileobj = StringIO.StringIO(data)
+        self._parse_settings(fileobj)
 
     def dump_settings(self):
-        print
-        print 'threads_per_child = %d' % self.ap_threads_per_child
-        print 'daemons_to_start = %d' % self.ap_daemons_to_start
-        print 'min_spare_threads = %d' % self.min_spare_threads
-        print 'max_spare_threads = %d' % self.max_spare_threads
-        print 'daemons_limit = %d' % self.ap_daemons_limit
-        print 'server_limit = %d' % self.server_limit
-        print 'thread_limit = %d' % self.thread_limit
-        print 'max_requests_per_child = %d' % self.ap_max_requests_per_child
-        print
+        info('threads_per_child = %d', self.ap_threads_per_child)
+        info('daemons_to_start = %d', self.ap_daemons_to_start)
+        info('children_to_start = %d', self.children_to_start)
+        info('min_spare_threads = %d', self.min_spare_threads)
+        info('max_spare_threads = %d', self.max_spare_threads)
+        info('daemons_limit = %d', self.ap_daemons_limit)
+        info('server_limit = %d', self.server_limit)
+        info('thread_limit = %d', self.thread_limit)
+        info('max_requests_per_child = %d', self.ap_max_requests_per_child)
 
 class Simulator(object):
 
     def __init__(self, configuration):
         self.configuration = configuration
 
-        self.active_processes = configuration.ap_daemons_to_start
+        self.active_processes = configuration.children_to_start
         self.active_thread_count = 0
 
         self.idle_thread_count = (self.active_processes *
