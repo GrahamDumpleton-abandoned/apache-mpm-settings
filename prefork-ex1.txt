@@ -1,0 +1,2 @@
+MaxSpareServers 2
+MinSpareServers 1
