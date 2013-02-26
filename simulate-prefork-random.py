@@ -15,8 +15,8 @@ simulator = prefork.Simulator(configuration)
 simulator.dump_columns()
 simulator.dump_statistics()
 
-mu = 0.75
-sigma = 0.01
+mu = 0.5
+sigma = 0.3
 
 for i in range(20):
     simulator.dump_statistics()
