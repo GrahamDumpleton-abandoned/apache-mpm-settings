@@ -25,3 +25,7 @@ pip-log.txt
 
 #Mr Developer
 .mr.developer.cfg
+
+# Temporary files.
+worker-*.csv
+prefork-*.csv

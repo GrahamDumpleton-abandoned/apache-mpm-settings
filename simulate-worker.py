@@ -1,5 +1,6 @@
 import sys
 import worker
+import random
 
 configuration = worker.Configuration()
 
@@ -14,22 +15,24 @@ simulator = worker.Simulator(configuration)
 simulator.dump_columns()
 simulator.dump_statistics()
 
-for i in range(configuration.ap_threads_per_child):
+for i in range(configuration.ap_daemons_limit):
     simulator.dump_statistics()
 
-skip = 1
+upskip = 1
 for i in range(0, configuration.ap_daemons_limit *
-        configuration.ap_threads_per_child, skip):
-    for i in range(skip):
+        configuration.ap_threads_per_child, upskip):
+    for j in range(upskip):
         simulator.increment_requests()
     simulator.process_maintenance()
     simulator.dump_statistics()
 
-for i in range(configuration.ap_daemons_limit *
-        configuration.ap_threads_per_child):
-    simulator.decrement_requests()
+downskip = 1
+for i in range(0, configuration.ap_daemons_limit *
+        configuration.ap_threads_per_child, downskip):
+    for j in range(downskip):
+        simulator.decrement_requests()
     simulator.process_maintenance()
     simulator.dump_statistics()
 
-for i in range(configuration.ap_threads_per_child):
+for i in range(configuration.ap_daemons_limit):
     simulator.dump_statistics()

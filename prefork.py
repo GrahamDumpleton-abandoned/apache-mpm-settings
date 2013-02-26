@@ -157,12 +157,17 @@ class Simulator(object):
 
         self.idle_spawn_rate = 1
 
+        self.process_creation = 0
+
     def dump_columns(self):
-        print 'Active Process Count,Active Processes,Idle Process Count'
+        print ('Active Process Count,Active Processes,Idle Process Count,'
+                'Process Creation')
 
     def dump_statistics(self):
         print ','.join(map(str, (self.active_process_count,
-                self.active_processes, self.idle_process_count)))
+                self.active_processes, self.idle_process_count,
+                self.process_creation)))
+        self.process_creation = 0
 
     def increment_requests(self):
         if self.active_process_count < self.configuration.ap_daemons_limit:
@@ -182,6 +187,7 @@ class Simulator(object):
         if self.active_processes < self.configuration.ap_daemons_limit:
             self.active_processes += 1
             self.idle_process_count += 1
+            self.process_creation += 1
             return True
         return False
 
@@ -189,6 +195,7 @@ class Simulator(object):
         if self.active_processes > 0:
             self.active_processes -= 1
             self.idle_process_count -= 1
+            self.process_creation -= 1
             return True
         return False
 
